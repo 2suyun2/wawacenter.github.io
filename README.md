@@ -1,2 +1,0 @@
-# wawacenter.github.io
-wawacenter
