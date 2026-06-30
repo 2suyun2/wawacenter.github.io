@@ -295,17 +295,55 @@
     }
     .branch-modal-body{padding:28px}
     .detail-summary{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:24px}
-    .detail-summary-card{padding:18px;border:1px solid var(--line);border-radius:17px;background:#f8fafc}
-    .detail-summary-card small{display:block;color:var(--muted);margin-bottom:5px}
-    .detail-summary-card strong{color:var(--navy);font-size:1.04rem}
-    .detail-table{
-      display:grid;grid-template-columns:repeat(2,minmax(0,1fr));
-      border:1px solid var(--line);border-radius:18px;overflow:hidden;margin-bottom:24px
+    .detail-summary-card{
+      padding:20px;border:1px solid var(--line);border-radius:18px;
+      background:linear-gradient(180deg,#ffffff,#f8fafc)
     }
-    .detail-row{display:grid;grid-template-columns:145px 1fr;min-height:54px;border-bottom:1px solid var(--line)}
+    .detail-summary-card small{display:block;color:var(--muted);margin-bottom:7px}
+    .detail-summary-card strong{color:var(--navy);font-size:1.05rem;line-height:1.5}
+
+    .detail-section{
+      border:1px solid var(--line);border-radius:22px;overflow:hidden;
+      margin-bottom:22px;background:#fff
+    }
+    .detail-section-title{
+      background:linear-gradient(135deg,#111827,#312e81);
+      color:#fff;text-align:center;font-weight:900;
+      padding:15px 18px;letter-spacing:-.02em
+    }
+    .detail-table{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
+    .detail-row{
+      display:grid;grid-template-columns:150px 1fr;min-height:58px;
+      border-bottom:1px solid var(--line)
+    }
     .detail-row:nth-child(odd){border-right:1px solid var(--line)}
-    .detail-label{padding:14px;background:#f8fafc;color:#475569;font-weight:800}
-    .detail-value{padding:14px;color:var(--navy);white-space:pre-wrap;overflow-wrap:anywhere}
+    .detail-label{
+      padding:15px;background:#f8fafc;color:#334155;font-weight:850;
+      display:flex;align-items:center
+    }
+    .detail-value{
+      padding:15px;color:var(--navy);white-space:pre-wrap;overflow-wrap:anywhere;
+      display:flex;align-items:center
+    }
+    .grade-section{padding:0}
+    .subject-grade-table{display:grid}
+    .subject-grade-row{
+      display:grid;grid-template-columns:140px 1fr;border-bottom:1px solid var(--line)
+    }
+    .subject-grade-row:last-child{border-bottom:0}
+    .subject-grade-name{
+      padding:16px;background:#f8fafc;color:#1f2937;font-weight:900;
+      display:flex;align-items:center
+    }
+    .grade-chip-wrap{
+      padding:14px;display:flex;flex-wrap:wrap;gap:8px;align-items:center
+    }
+    .grade-chip{
+      display:inline-flex;align-items:center;justify-content:center;
+      min-width:56px;padding:8px 14px;border-radius:999px;
+      background:#4f46e5;color:#fff;font-weight:900;font-size:.88rem
+    }
+    .detail-empty{color:var(--muted)}
     .map-wrap{border:1px solid var(--line);border-radius:20px;overflow:hidden;background:#f8fafc}
     .map-wrap iframe{width:100%;height:360px;border:0;display:block}
     .map-placeholder{display:grid;place-items:center;min-height:240px;padding:30px;text-align:center;color:var(--muted)}
@@ -352,7 +390,9 @@
       .branch-modal-head{padding:20px;border-radius:20px 20px 0 0}
       .branch-modal-body{padding:18px}
       .detail-summary,.detail-table{grid-template-columns:1fr}
-      .detail-row{grid-template-columns:115px 1fr;border-right:0!important}
+      .detail-row{grid-template-columns:118px 1fr;border-right:0!important}
+      .subject-grade-row{grid-template-columns:95px 1fr}
+      .grade-chip{min-width:48px;padding:7px 11px;font-size:.82rem}
       .map-wrap iframe{height:300px}
     }
   </style>
@@ -722,7 +762,22 @@
       </div>
       <div class="branch-modal-body">
         <div class="detail-summary" id="branchSummary"></div>
-        <div class="detail-table" id="branchDetailTable"></div>
+
+        <section class="detail-section">
+          <div class="detail-section-title">센터 기본 정보</div>
+          <div class="detail-table" id="branchBasicTable"></div>
+        </section>
+
+        <section class="detail-section grade-section">
+          <div class="detail-section-title">수업 가능 과목·학년</div>
+          <div class="subject-grade-table" id="branchGradeTable"></div>
+        </section>
+
+        <section class="detail-section" id="branchExtraSection">
+          <div class="detail-section-title">추가 정보</div>
+          <div class="detail-table" id="branchExtraTable"></div>
+        </section>
+
         <div class="map-wrap" id="branchMapWrap">
           <div class="map-placeholder">주소 정보가 있으면 지도가 표시됩니다.</div>
         </div>
@@ -1163,25 +1218,24 @@
       [item.address,item.address2].filter(Boolean).join(' ') || '주소 정보 없음';
 
     document.getElementById('branchSummary').innerHTML =
-      makeSummaryCard('수업 가능 학년', item.grades || '-') +
-      makeSummaryCard('가능 과목', item.subjects || '-') +
+      makeSummaryCard('수업 가능 학년', item.grades || '시트 상세정보 확인') +
+      makeSummaryCard('가능 과목', item.subjects || '과목별 학년표 확인') +
       makeSummaryCard('교육지원청', item.office || '-');
 
-    const preferredOrder = [
-      ['수업 가능 학년',['수업가능학년','가능학년','수업학년','대상학년','교육대상','수강대상']],
-      ['가능 과목',['가능과목','수업가능과목','수업과목','교습과목','과목']],
+    const basicDefinitions = [
       ['교육지원청 명칭',['교육지원청명칭','교육지원청','관할교육지원청','교육청명칭']],
       ['교육지원청 등록번호',['교육지원청등록번호','등록번호','학원등록번호','교습소등록번호']],
       ['운영 등록일',['운영등록일','등록일','개원일','설립일','운영일']],
       ['주소',['주소','도로명주소','소재지','학원주소','교습소주소','위치']],
       ['상세주소',['상세주소','주소상세','건물명','층호수']],
+      ['오픈시간',['오픈시간','운영시간','수업시간','상담시간']],
       ['전화번호',['전화번호','연락처','지점전화','센터전화','대표번호']]
     ];
 
+    const basicRows = [];
     const usedHeaders = new Set();
-    const detailRows = [];
 
-    preferredOrder.forEach(([label, aliases]) => {
+    basicDefinitions.forEach(([label, aliases]) => {
       const value = getFieldValue(item.raw, aliases);
       if (!value) return;
 
@@ -1193,23 +1247,114 @@
         })
       );
       if (matched) usedHeaders.add(matched);
-      detailRows.push([label,value]);
+      basicRows.push([label, value]);
     });
 
-    Object.entries(item.raw).forEach(([header,value]) => {
-      if (!String(value || '').trim() || usedHeaders.has(header)) return;
+    document.getElementById('branchBasicTable').innerHTML = basicRows.length
+      ? basicRows.map(([label,value]) => `
+          <div class="detail-row">
+            <div class="detail-label">${escapeHTML(label)}</div>
+            <div class="detail-value">${escapeHTML(value)}</div>
+          </div>`).join('')
+      : '<div class="detail-row"><div class="detail-label">기본 정보</div><div class="detail-value detail-empty">등록된 정보가 없습니다.</div></div>';
+
+    function splitGrades(value) {
+      return String(value || '')
+        .split(/[,/·|]+/)
+        .map(v => v.trim())
+        .filter(Boolean);
+    }
+
+    const subjectDefinitions = [
+      ['국어',['가능학년(국어)','국어가능학년','국어 수업가능학년','국어']],
+      ['영어',['가능학년(영어)','영어가능학년','영어 수업가능학년']],
+      ['수학',['가능학년(수학)','수학가능학년','수학 수업가능학년']],
+      ['과학',['가능학년(과학)','과학가능학년','과학 수업가능학년']],
+      ['사회',['가능학년(사회)','사회가능학년','사회 수업가능학년']]
+    ];
+
+    const overallGrades = getFieldValue(item.raw, [
+      '수업가능학년','가능학년','수업학년','대상학년','교육대상','수강대상'
+    ]);
+
+    const subjectRows = [];
+
+    subjectDefinitions.forEach(([subject, aliases]) => {
+      const value = getFieldValue(item.raw, aliases);
+      if (!value) return;
+
+      const matched = Object.keys(item.raw).find(header =>
+        aliases.some(alias => {
+          const a = normalizeHeader(alias);
+          const h = normalizeHeader(header);
+          return h === a || h.includes(a) || a.includes(h);
+        })
+      );
+      if (matched) usedHeaders.add(matched);
+
+      subjectRows.push([subject, splitGrades(value)]);
+    });
+
+    if (!subjectRows.length && overallGrades) {
+      const availableSubjects = splitGrades(
+        getFieldValue(item.raw, ['가능과목','수업가능과목','수업과목','교습과목','과목'])
+      );
+      const grades = splitGrades(overallGrades);
+
+      if (availableSubjects.length) {
+        availableSubjects.forEach(subject => subjectRows.push([subject, grades]));
+      } else {
+        subjectRows.push(['전체 과목', grades]);
+      }
+    }
+
+    document.getElementById('branchGradeTable').innerHTML = subjectRows.length
+      ? subjectRows.map(([subject, grades]) => `
+          <div class="subject-grade-row">
+            <div class="subject-grade-name">${escapeHTML(subject)}</div>
+            <div class="grade-chip-wrap">
+              ${grades.length
+                ? grades.map(grade => `<span class="grade-chip">${escapeHTML(grade)}</span>`).join('')
+                : '<span class="detail-empty">등록된 학년 정보가 없습니다.</span>'}
+            </div>
+          </div>`).join('')
+      : `
+        <div class="subject-grade-row">
+          <div class="subject-grade-name">수업 정보</div>
+          <div class="grade-chip-wrap"><span class="detail-empty">등록된 과목·학년 정보가 없습니다.</span></div>
+        </div>`;
+
+    Object.keys(item.raw).forEach(header => {
       const normalized = normalizeHeader(header);
-      if (['지점명','센터명','학원명','지점','센터'].includes(normalized)) return;
-      detailRows.push([header,value]);
+      if (
+        ['지점명','센터명','학원명','지점','센터'].includes(normalized) ||
+        normalized.includes('가능학년') ||
+        normalized.includes('수업가능학년') ||
+        normalized.includes('가능과목') ||
+        normalized.includes('수업과목')
+      ) {
+        usedHeaders.add(header);
+      }
     });
 
-    document.getElementById('branchDetailTable').innerHTML = detailRows
-      .map(([label,value]) => `
-        <div class="detail-row">
-          <div class="detail-label">${escapeHTML(label)}</div>
-          <div class="detail-value">${escapeHTML(value)}</div>
-        </div>`)
-      .join('');
+    const extraRows = Object.entries(item.raw)
+      .filter(([header,value]) => String(value || '').trim() && !usedHeaders.has(header))
+      .map(([header,value]) => [header,value]);
+
+    const extraSection = document.getElementById('branchExtraSection');
+    if (extraRows.length) {
+      extraSection.style.display = '';
+      document.getElementById('branchExtraTable').innerHTML = extraRows
+        .map(([label,value]) => `
+          <div class="detail-row">
+            <div class="detail-label">${escapeHTML(label)}</div>
+            <div class="detail-value">${escapeHTML(value)}</div>
+          </div>`)
+        .join('');
+    } else {
+      extraSection.style.display = 'none';
+      document.getElementById('branchExtraTable').innerHTML = '';
+    }
 
     const fullAddress = [item.address,item.address2].filter(Boolean).join(' ').trim();
     const mapWrap = document.getElementById('branchMapWrap');
