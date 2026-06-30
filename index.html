@@ -545,6 +545,12 @@
         시트가 수정되면 웹페이지 지점 목록도 새로고침 후 반영됩니다.
       </p>
 
+      <div style="margin-top:20px">
+        <a class="btn btn-outline" href="https://map.kakao.com/?map_type=TYPE_MAP&folderid=3459092&target=other&page=bookmark" target="_blank" rel="noopener">
+          카카오맵에서 전체 지점 보기
+        </a>
+      </div>
+
       <div class="branch-box">
         <div class="branch-controls">
           <input class="control" id="branchSearch" type="search" placeholder="지점명·주소·교육지원청·가능과목 검색">
@@ -722,8 +728,8 @@
         </div>
         <div class="modal-actions">
           <button class="btn btn-primary" id="selectBranchConsult" type="button">이 지점으로 상담 신청</button>
-          <a class="btn btn-outline" id="openGoogleMap" href="#" target="_blank" rel="noopener">큰 지도에서 보기</a>
-          <a class="btn btn-outline" id="openNaverMap" href="#" target="_blank" rel="noopener">네이버지도에서 보기</a>
+          <a class="btn btn-outline" id="openKakaoMap" href="#" target="_blank" rel="noopener">카카오맵에서 보기</a>
+          <a class="btn btn-outline" id="openKakaoFolder" href="#" target="_blank" rel="noopener">전체 지점 지도</a>
         </div>
       </div>
     </div>
@@ -754,6 +760,17 @@
 
   const BRANCH_CSV_URL =
     'https://docs.google.com/spreadsheets/d/e/2PACX-1vRV4PEjao8ubJEmc9TpvD1TuYa0FObV5vhi9NrTgmzwQnwnq0DS04Z09jNVrkQG98eNgQt3cP2sbnZS/pub?gid=0&single=true&output=csv';
+
+  /*
+    카카오 지도 내부 표시용 JavaScript 키입니다.
+    Kakao Developers에서 앱 생성 → 플랫폼 Web 등록 → JavaScript 키를 복사해 입력하세요.
+    GitHub Pages 주소도 Web 플랫폼 사이트 도메인에 등록해야 합니다.
+  */
+  const KAKAO_MAP_JS_KEY = '2571966a0263843c17baa1ef9558663c';
+
+  // 사용자가 제공한 전체 지점 카카오맵 즐겨찾기 폴더
+  const KAKAO_BRANCH_FOLDER_URL =
+    'https://map.kakao.com/?map_type=TYPE_MAP&folderid=3459092&target=other&page=bookmark';
 
   /*
     Apps Script를 웹 앱으로 배포한 뒤 생성되는 /exec 주소를 아래에 입력하세요.
@@ -1043,6 +1060,92 @@
   }
 
 
+
+  let kakaoMapSdkPromise = null;
+
+  function loadKakaoMapSdk() {
+    if (window.kakao && window.kakao.maps) {
+      return Promise.resolve();
+    }
+
+    if (!KAKAO_MAP_JS_KEY || KAKAO_MAP_JS_KEY.startsWith('여기에_')) {
+      return Promise.reject(new Error('카카오 JavaScript 키가 설정되지 않았습니다.'));
+    }
+
+    if (kakaoMapSdkPromise) return kakaoMapSdkPromise;
+
+    kakaoMapSdkPromise = new Promise((resolve, reject) => {
+      const script = document.createElement('script');
+      script.src =
+        `https://dapi.kakao.com/v2/maps/sdk.js?appkey=${encodeURIComponent(KAKAO_MAP_JS_KEY)}&libraries=services&autoload=false`;
+      script.onload = () => {
+        kakao.maps.load(() => resolve());
+      };
+      script.onerror = () => reject(new Error('카카오 지도 SDK를 불러오지 못했습니다.'));
+      document.head.appendChild(script);
+    });
+
+    return kakaoMapSdkPromise;
+  }
+
+  async function renderKakaoMap(container, address, branchName) {
+    if (!address) {
+      container.innerHTML =
+        '<div class="map-placeholder">시트에 주소가 입력되면 카카오 지도가 표시됩니다.</div>';
+      return;
+    }
+
+    container.innerHTML =
+      '<div class="map-placeholder">카카오 지도를 불러오는 중입니다.</div>';
+
+    try {
+      await loadKakaoMapSdk();
+
+      container.innerHTML = '<div id="kakaoBranchMap" style="width:100%;height:360px"></div>';
+      const mapNode = document.getElementById('kakaoBranchMap');
+      const geocoder = new kakao.maps.services.Geocoder();
+
+      geocoder.addressSearch(address, function(result, status) {
+        if (status !== kakao.maps.services.Status.OK || !result.length) {
+          container.innerHTML =
+            '<div class="map-placeholder">카카오 지도에서 주소 좌표를 찾지 못했습니다.<br>아래 카카오맵 버튼으로 확인해 주세요.</div>';
+          return;
+        }
+
+        const position = new kakao.maps.LatLng(
+          Number(result[0].y),
+          Number(result[0].x)
+        );
+
+        const map = new kakao.maps.Map(mapNode, {
+          center: position,
+          level: 3
+        });
+
+        const marker = new kakao.maps.Marker({
+          map,
+          position
+        });
+
+        const infoWindow = new kakao.maps.InfoWindow({
+          content:
+            `<div style="padding:8px 12px;white-space:nowrap;font-size:13px;font-weight:700">${escapeHTML(branchName)}</div>`
+        });
+
+        infoWindow.open(map, marker);
+
+        setTimeout(() => {
+          map.relayout();
+          map.setCenter(position);
+        }, 100);
+      });
+    } catch (error) {
+      console.error(error);
+      container.innerHTML =
+        '<div class="map-placeholder">카카오 지도를 홈페이지 안에 표시하려면 Kakao Developers의 JavaScript 키와 사이트 도메인 등록이 필요합니다.<br>아래 카카오맵 버튼은 키 없이 사용할 수 있습니다.</div>';
+    }
+  }
+
   const branchModal = document.getElementById('branchModal');
   const branchModalClose = document.getElementById('branchModalClose');
   let activeBranch = null;
@@ -1110,26 +1213,21 @@
 
     const fullAddress = [item.address,item.address2].filter(Boolean).join(' ').trim();
     const mapWrap = document.getElementById('branchMapWrap');
-    const googleLink = document.getElementById('openGoogleMap');
-    const naverLink = document.getElementById('openNaverMap');
+    const kakaoLink = document.getElementById('openKakaoMap');
+    const folderLink = document.getElementById('openKakaoFolder');
+
+    folderLink.href = KAKAO_BRANCH_FOLDER_URL;
 
     if (fullAddress) {
-      const encoded = encodeURIComponent(fullAddress);
-      mapWrap.innerHTML = `
-        <iframe
-          title="${escapeHTML(item.name)} 지도"
-          loading="lazy"
-          referrerpolicy="no-referrer-when-downgrade"
-          src="https://www.google.com/maps?q=${encoded}&output=embed">
-        </iframe>`;
-      googleLink.href = `https://www.google.com/maps/search/?api=1&query=${encoded}`;
-      naverLink.href = `https://map.naver.com/p/search/${encoded}`;
-      googleLink.style.display = '';
-      naverLink.style.display = '';
+      const query = encodeURIComponent(`${item.name} ${fullAddress}`);
+      kakaoLink.href = `https://map.kakao.com/link/search/${query}`;
+      kakaoLink.style.display = '';
+      renderKakaoMap(mapWrap, item.address || fullAddress, item.name);
     } else {
-      mapWrap.innerHTML = '<div class="map-placeholder">시트에 주소가 입력되면 지도가 표시됩니다.</div>';
-      googleLink.style.display = 'none';
-      naverLink.style.display = 'none';
+      mapWrap.innerHTML =
+        '<div class="map-placeholder">시트에 주소가 입력되면 카카오 지도가 표시됩니다.</div>';
+      kakaoLink.href = `https://map.kakao.com/link/search/${encodeURIComponent(item.name)}`;
+      kakaoLink.style.display = '';
     }
 
     branchModal.classList.add('open');
