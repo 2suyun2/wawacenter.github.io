@@ -1629,14 +1629,46 @@
     ]);
 
     const branchArea = stripAdministrativeSuffix(item.name.replace(/점$/,''));
-    const localAreas = uniqueTerms([
+
+    function makeDongAliases(values) {
+      const aliases = [];
+
+      values.forEach(value => {
+        const term = String(value || '').trim();
+        if (!term || term.length < 2) return;
+
+        if (/(동|읍|면|리)$/.test(term)) {
+          aliases.push(term);
+          return;
+        }
+
+        if (/(시|군|구)$/.test(term)) return;
+
+        aliases.push(`${term}동`);
+      });
+
+      return uniqueTerms(aliases);
+    }
+
+    const baseLocalAreas = uniqueTerms([
       ...addressAreas,
       ...schoolAreas,
       branchArea
     ]).filter(area => area && area !== item.region && area.length >= 2);
 
+    const dongAliases = makeDongAliases([
+      branchArea,
+      ...schoolAreas,
+      ...addressAreas.filter(area => !/(시|군|구)$/.test(area))
+    ]);
+
+    const localAreas = uniqueTerms([
+      ...baseLocalAreas,
+      ...dongAliases
+    ]).filter(area => area && area !== item.region && area.length >= 2);
+
     const primaryArea = localAreas[0] || branchArea || item.city || item.region || '';
-    const secondaryAreas = localAreas.slice(1, 4);
+    const secondaryAreas = localAreas.slice(1, 5);
     const livingAreaText = uniqueTerms([primaryArea, ...secondaryAreas]).join('·');
 
     const branchBase = item.name.replace(/점$/, '');
@@ -1644,11 +1676,25 @@
     const nearbyMiddle = middleSchools !== '-' ? middleSchools : '인근 중학교';
     const nearbyHigh = highSchools !== '-' ? highSchools : '인근 고등학교';
 
-    const keywordAreas = localAreas.slice(0, 4);
+    const keywordAreas = uniqueTerms([
+      ...dongAliases,
+      ...localAreas
+    ]).slice(0, 6);
+
     const localKeywords = [];
 
     keywordAreas.forEach(area => {
       localKeywords.push(
+        `${area}초등영어학원`,
+        `${area}초등수학학원`,
+        `${area}중등영어학원`,
+        `${area}중등수학학원`,
+        `${area}고등영어내신`,
+        `${area}고등수학내신`
+      );
+    });
+
+    localKeywords.push(
         `${area}초등영어학원`,
         `${area}초등수학학원`,
         `${area}중등영어학원`,
@@ -1674,7 +1720,7 @@
       `고등학생은 영어 지문 분석, 수학 개념 적용, 모의고사와 내신 일정 관리처럼 과목별 우선순위를 구체적으로 나누는 방식이 필요합니다.`;
 
     document.getElementById('branchKeywordChips').innerHTML =
-      uniqueTerms(localKeywords).slice(0, 18).map(keyword =>
+      uniqueTerms(localKeywords).slice(0, 24).map(keyword =>
         `<span class="keyword-chip">${escapeHTML(keyword)}</span>`
       ).join('');
 
