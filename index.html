@@ -1695,16 +1695,6 @@
     });
 
     localKeywords.push(
-        `${area}초등영어학원`,
-        `${area}초등수학학원`,
-        `${area}중등영어학원`,
-        `${area}중등수학학원`,
-        `${area}고등영어내신`,
-        `${area}고등수학내신`
-      );
-    });
-
-    localKeywords.push(
       `${branchBase}점 학습코칭`,
       `${branchBase}점 내신관리`
     );
@@ -1798,6 +1788,13 @@
           지점 구글시트를 불러오지 못했습니다.<br>
           시트가 웹에 CSV로 공개되어 있는지, 첫 행에 지점명 열이 있는지 확인해 주세요.
         </div>`;
+      const regionButtons = document.getElementById('regionButtons');
+      if (regionButtons) {
+        regionButtons.innerHTML = `
+          <div class="branch-error" style="grid-column:1/-1">
+            지역 정보를 불러오지 못했습니다. 잠시 후 새로고침해 주세요.
+          </div>`;
+      }
     }
   }
 
